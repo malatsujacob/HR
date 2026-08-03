@@ -333,7 +333,7 @@ try {
         <h1 class="page-title">Employee Onboarding Workflow</h1>
         <div style="display: flex; gap: 10px;">
             <a href="index.php" class="btn-primary" style="background-color: #0284c7;">← Back Hub</a>
-            <a href="../module9_training/manage_training.php" class="btn-primary">Training Module →</a>
+            <a href="/HR/module9_training/training.php" class="btn-primary">Training Module →</a>
         </div>
     </header>
 

@@ -169,7 +169,7 @@ try {
 
 <div class="container">
     <header>
-        <a href="../dashboard/index.php" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back</a>
+        <a href="/HR/index.php" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back</a>
         <h1 class="page-title">Contracts Management</h1>
         <div style="width: 50px;"></div>
     </header>

@@ -31,8 +31,13 @@ if (preg_match('#/HR/(module[^/]+)/#', $requestUri, $matches)) {
         <li><a href="/HR/module_1_employees/index.php">5. Employee Directory</a></li>
         <li><a href="/HR/module6_leave/index.php">6. Leave Management</a></li>
         <li><a href="/HR/module7_payroll/index.php">7. Payroll & Disbursement (UGX)</a></li>
-        <li><a href="/HR/module8_performance/index.php">8. Performance Reviews</a></li>
-        <li><a href="/HR/module9_training/index.php">9. Training Management</a></li>
+        <li>
+            <a href="/HR/module9_training/index.php">9. Training & Development</a>
+            <ul class="sub-links">
+                <li><a href="/HR/module9_training/training.php">Training Schedule</a></li>
+                <li><a href="/HR/module9_training/hr_login.php">Training Setup</a></li>
+            </ul>
+        </li>
         <li><a href="/HR/module10_ess/index.php">10. Employee Self-Service (ESS)</a></li>
         <li><a href="/HR/module11_analytics/index.php">11. HR Analytics & Reports</a></li>
         <li><a href="/HR/module12_disciplinary/index.php">12. Disciplinary & Grievance</a></li>
@@ -104,6 +109,21 @@ if (preg_match('#/HR/(module[^/]+)/#', $requestUri, $matches)) {
         background-color: #1e293b;
         color: #ffffff;
         border-left-color: #0284c7;
+    }
+    .sidebar ul.nav-links li ul.sub-links {
+        list-style: none;
+        margin: 8px 0 0 0;
+        padding: 0 0 0 16px;
+    }
+    .sidebar ul.nav-links li ul.sub-links li a {
+        font-size: 11px;
+        color: #cbd5e1;
+        border-left-color: transparent;
+    }
+    .sidebar ul.nav-links li ul.sub-links li a:hover {
+        background-color: #111827;
+        color: #ffffff;
+        border-left-color: transparent;
     }
 
     /* Module variant styling */

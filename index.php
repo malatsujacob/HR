@@ -20,25 +20,25 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Sections - HRMS</title>
+    <title>All Sections - HR</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <style>
         body { 
             background-color: #ffffff; 
-            color: #1e293b; 
+            color: #1d4ed8; 
             margin: 0; 
             font-family: Arial, sans-serif; 
         }
         .container { 
             margin-left: 260px; 
             max-width: calc(100% - 260px); 
-            padding: 20px; 
+            padding: 24px; 
             box-sizing: border-box; 
             background: #ffffff; 
             min-height: 100vh; 
         }
         header { 
-            border-bottom: 2px solid #e2e8f0; 
+            border-bottom: 2px solid #dbeafe; 
             padding-bottom: 12px; 
             margin-bottom: 20px; 
             display: flex; 
@@ -49,12 +49,12 @@ try {
             font-size: 18px; 
             font-weight: 900; 
             margin: 0; 
-            color: #1e293b; 
+            color: #1d4ed8; 
             text-transform: uppercase; 
             letter-spacing: 0.5px; 
         }
         .brand-title { color: #2563eb; font-weight: 900; }
-        .brand-title span { color: #3b82f6; }
+        .brand-title span { color: #2563eb; }
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -71,7 +71,7 @@ try {
         .metric-card h3 {
             margin: 0 0 8px 0;
             font-size: 11px;
-            color: #2563eb;
+            color: #1d4ed8;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -79,24 +79,24 @@ try {
         .metric-card .value {
             font-size: 20px;
             font-weight: 900;
-            color: #1e293b;
+            color: #1d4ed8;
         }
         .card { 
-            background: #eff6ff; 
+            background: #ffffff; 
             padding: 20px; 
             border-radius: 6px; 
             border: 1px solid #bfdbfe; 
-            box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1); 
+            box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08); 
             margin-bottom: 20px; 
         }
         .card h2 {
             font-size: 14px;
             margin-top: 0;
-            color: #1e293b;
+            color: #1d4ed8;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 900;
-            border-left: 3px solid #2563eb;
+            border-left: 3px solid #3b82f6;
             padding-left: 8px;
         }
         .module-list {
@@ -112,7 +112,7 @@ try {
             text-align: left;
             border-radius: 4px;
             text-decoration: none;
-            color: #2563eb;
+            color: #1d4ed8;
             font-weight: 900;
             font-size: 11px;
             text-transform: uppercase;
@@ -122,6 +122,20 @@ try {
         }
         .module-btn:hover {
             background-color: #dbeafe;
+        }
+        .module-sublist {
+            margin-top: 6px;
+            margin-left: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .module-btn.sub {
+            background-color: #f8fafc;
+            border-color: #dbeafe;
+            color: #0f172a;
+            font-size: 11px;
+            padding-left: 24px;
         }
     </style>
 </head>
@@ -159,12 +173,28 @@ try {
                 <a href="module_1_employees/index.php" class="module-btn">5. Employee Directory & Records</a>
                 <a href="module6_leave/index.php" class="module-btn">6. Leave Management</a>
                 <a href="module7_payroll/index.php" class="module-btn">7. Payroll (Ugandan Shilling Disbursement)</a>
-                <a href="module8_performance/index.php" class="module-btn">8. Performance Reviews</a>
-                <a href="module9_training/index.php" class="module-btn">9. Training & Skill Development</a>
+                        <a href="module8_performance/index.php" class="module-btn">8. Performance Reviews</a>
+                <div>
+                    <a href="module9_training/index.php" class="module-btn">9. Training Management</a>
+                    <div class="module-sublist">
+                        <a href="module9_training/training.php" class="module-btn sub">9.1 Training Schedule</a>
+                        <a href="module9_training/manage_training.php" class="module-btn sub">9.2 Training Setup</a>
+                    </div>
+                </div>
                 <a href="module10_ess/index.php" class="module-btn">10. Employee Self-Service (ESS)</a>
                 <a href="module11_analytics/index.php" class="module-btn">11. HR Analytics & Reporting</a>
                 <a href="module12_disciplinary/index.php" class="module-btn">12. Disciplinary Actions</a>
                 <a href="module13_offboarding/index.php" class="module-btn">13. Offboarding & Exit Management</a>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Module 9 — Training & Development (Direct Files)</h2>
+            <div class="module-list">
+                <a href="module9_training/index.php" class="module-btn">Module 9: Landing</a>
+                <a href="module9_training/training.php" class="module-btn">training.php (Employee view)</a>
+                <a href="module9_training/manage_training.php" class="module-btn">manage_training.php (HR management)</a>
+                <a href="module9_training/process_training.php" class="module-btn">process_training.php (Routing)</a>
+                <!-- internal model removed from index for security -->
             </div>
         </div>
     </div>
