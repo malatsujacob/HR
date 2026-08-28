@@ -1,67 +1,65 @@
 <?php
-// includes/sidebar.php - Unified Navigation Sidebar (Fixed Layout Version)
-$sidebarVariant = 'master';
+// includes/sidebar.php - Unified Navigation Sidebar (Absolute Path Fixed Version)
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
-$moduleIndexUrl = '/HR/index.php';
-$moduleName = 'Main Dashboard';
-if (preg_match('#/HR/(module[^/]+)/#', $requestUri, $matches)) {
-    $moduleFolder = $matches[1];
-    $sidebarVariant = 'module';
-    $moduleIndexUrl = '/HR/' . $moduleFolder . '/index.php';
-    $moduleName = ucwords(str_replace(['_', '-'], [' ', ' '], preg_replace('/(module)(\d+)/i', '$1 $2', $moduleFolder)));
-}
+$isInsideModule = preg_match('#/module[^/]+/.+#', $requestUri);
+// If we are inside a sub-folder (like moduleX/sub/page.php), we need an extra level to get back to the project root
+$rootPath = $isInsideModule ? '../../' : '../';
 ?>
 
-<div class="sidebar sidebar-<?php echo $sidebarVariant; ?>">
+<div class="sidebar">
     <div class="brand">
         <span class="skyblue">CHAP CHAP AFRICA</span><br>
         <span class="hrms-brand">HRMS</span>
     </div>
-    <?php if ($sidebarVariant === 'module'): ?>
-        <div class="home-link">
-            <a href="<?php echo $moduleIndexUrl; ?>">← Back to <?php echo htmlspecialchars($moduleName); ?></a>
-        </div>
-    <?php endif; ?>
+    
+    <div class="home-link">
+        <a href="/hr/index.php">🏠 Main Home Dashboard</a>
+    </div>
+
     <ul class="nav-links">
-        <li><a href="/HR/index.php">All Sections</a></li>
-        <li><a href="/HR/module2_recruitment/index.php">1. Recruitment Management</a></li>
-        <li><a href="/HR/module4_contracts/index.php">2. Contracts Management</a></li>
-        <li><a href="/HR/module3_onboarding/index.php">3. Onboarding Management</a></li>
-        <li><a href="/HR/module5_attendance/index.php">4. Attendance & Shifts</a></li>
-        <li><a href="/HR/module_1_employees/index.php">5. Employee Directory</a></li>
-        <li><a href="/HR/module6_leave/index.php">6. Leave Management</a></li>
-        <li><a href="/HR/module7_payroll/index.php">7. Payroll & Disbursement (UGX)</a></li>
+        <li><a href="/hr/index.php">All Sections</a></li>
+        <li><a href="/hr/module2_recruitment/index.php">1. Recruitment Management</a></li>
+        <li><a href="/hr/module4_contracts/index.php">2. Contracts Management</a></li>
+        <li><a href="/hr/module3_onboarding/index.php">3. Onboarding Management</a></li>
+        <li><a href="/hr/module5_attendance/index.php">4. Attendance & Shifts</a></li>
+        <li><a href="/hr/module_1_employees/index.php">5. Employee Directory</a></li>
+        <li><a href="/hr/module6_leave/index.php">6. Leave Management</a></li>
+        <li><a href="/hr/module7_payroll/index.php">7. Payroll & Disbursement</a></li>
         <li>
-            <a href="/HR/module9_training/index.php">9. Training & Development</a>
+            <a href="/hr/module9_training/index.php">9. Training & Development</a>
             <ul class="sub-links">
-                <li><a href="/HR/module9_training/training.php">Training Schedule</a></li>
-                <li><a href="/HR/module9_training/hr_login.php">Training Setup</a></li>
+                <li><a href="/hr/module9_training/training.php">Training Schedule</a></li>
+                <li><a href="/hr/module9_training/hr_login.php">Training Setup</a></li>
             </ul>
         </li>
-        <li><a href="/HR/module10_ess/index.php">10. Employee Self-Service (ESS)</a></li>
-        <li><a href="/HR/module11_analytics/index.php">11. HR Analytics & Reports</a></li>
-        <li><a href="/HR/module12_disciplinary/index.php">12. Disciplinary & Grievance</a></li>
-        <li><a href="/HR/module13_offboarding/index.php">13. Offboarding & Clearance</a></li>
+        <li><a href="/hr/module10_ess/index.php">10. Employee ESS</a></li>
+        <li><a href="/hr/module11_analytics/index.php">11. HR Analytics & Reports</a></li>
+        <li><a href="/hr/module12_disciplinary/index.php">12. Disciplinary Actions</a></li>
+        <li><a href="/hr/module13_offboarding/index.php">13. Offboarding & Clearance</a></li>
+        <li style="margin-top: 20px; border-top: 1px solid rgba(148,163,184,0.24); padding-top: 10px;">
+            <a href="/hr/logout.php" style="color: #f87171; font-weight: bold;">🚪 Log Out</a>
+        </li>
     </ul>
 </div>
 
 <style>
     .sidebar {
-        width: 200px;
-        background-color: rgba(15,23,42,0.95);
+        width: 240px;
+        background-color: #0f172a;
         color: #ffffff;
         position: fixed;
-        height: 100%;
+        height: 100vh;
         top: 0;
         left: 0;
         padding-top: 16px;
         z-index: 9999;
-        box-shadow: 1px 0 4px rgba(0,0,0,0.12);
+        box-shadow: 2px 0 6px rgba(0,0,0,0.15);
         box-sizing: border-box;
+        overflow-y: auto;
     }
     .sidebar .brand {
         padding: 0 16px 16px 16px;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: bold;
         border-bottom: 1px solid rgba(148,163,184,0.24);
         text-align: center;
@@ -70,10 +68,10 @@ if (preg_match('#/HR/(module[^/]+)/#', $requestUri, $matches)) {
     .sidebar .brand span.hrms-brand {
         color: #f8fafc;
         font-weight: 700;
-        background-color: rgba(15,23,42,0.72);
+        background-color: #1e293b;
         padding: 2px 6px;
         border-radius: 4px;
-        font-size: 13px;
+        font-size: 12px;
     }
     .sidebar ul.nav-links {
         list-style: none;
@@ -86,23 +84,25 @@ if (preg_match('#/HR/(module[^/]+)/#', $requestUri, $matches)) {
     .sidebar .home-link a {
         display: inline-block;
         width: 100%;
-        padding: 10px 12px;
+        padding: 8px 10px;
         background: #0ea5e9;
         color: #ffffff;
         text-decoration: none;
         border-radius: 6px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
+        text-align: center;
+        box-sizing: border-box;
     }
     .sidebar .home-link a:hover {
         background: #0369a1;
     }
     .sidebar ul.nav-links li a {
         display: block;
-        padding: 10px 16px;
+        padding: 8px 16px;
         color: #cbd5e1;
         text-decoration: none;
-        font-size: 12px;
+        font-size: 11px;
         border-left: 3px solid transparent;
     }
     .sidebar ul.nav-links li a:hover {
@@ -112,36 +112,11 @@ if (preg_match('#/HR/(module[^/]+)/#', $requestUri, $matches)) {
     }
     .sidebar ul.nav-links li ul.sub-links {
         list-style: none;
-        margin: 8px 0 0 0;
-        padding: 0 0 0 16px;
+        margin: 4px 0 0 0;
+        padding: 0 0 0 12px;
     }
     .sidebar ul.nav-links li ul.sub-links li a {
-        font-size: 11px;
-        color: #cbd5e1;
-        border-left-color: transparent;
-    }
-    .sidebar ul.nav-links li ul.sub-links li a:hover {
-        background-color: #111827;
-        color: #ffffff;
-        border-left-color: transparent;
-    }
-
-    /* Module variant styling */
-    .sidebar-module {
-        background-color: #1f2937;
-    }
-    .sidebar-module .brand {
-        background-color: #111827;
-        border-bottom-color: #334155;
-    }
-    .sidebar-module .brand span.skyblue { color: #7dd3fc; }
-    .sidebar-module .brand span.hrms-brand { color: #f8fafc; background-color: #0f172a; border-color: #64748b; }
-    .sidebar-module ul.nav-links li a {
-        color: #e2e8f0;
-    }
-    .sidebar-module ul.nav-links li a:hover {
-        background-color: #111827;
-        color: #ffffff;
-        border-left-color: #7dd3fc;
+        font-size: 10px;
+        color: #94a3b8;
     }
 </style>

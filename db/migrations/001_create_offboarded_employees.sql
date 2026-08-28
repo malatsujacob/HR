@@ -1,0 +1,27 @@
+-- Migration: create offboarded_employees
+CREATE TABLE IF NOT EXISTS offboarded_employees (
+    offboard_id SERIAL PRIMARY KEY,
+    original_employee_id INTEGER,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    personal_email VARCHAR(100),
+    work_email VARCHAR(100),
+    phone_number VARCHAR(50),
+    department VARCHAR(50),
+    job_title VARCHAR(100),
+    hire_date DATE,
+    employment_type VARCHAR(50),
+    status VARCHAR(50),
+    profile_picture VARCHAR(255),
+    document_path VARCHAR(255),
+    bank_name VARCHAR(100),
+    account_number VARCHAR(100),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    exit_reason TEXT,
+    last_working_day DATE,
+    exit_interview_reason VARCHAR(255),
+    exit_interview_text TEXT,
+    do_not_rehire BOOLEAN DEFAULT FALSE,
+    offboarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

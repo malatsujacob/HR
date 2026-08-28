@@ -1,5 +1,5 @@
 <?php
-// module2_recruitment/index.php - Recruitment Hub
+//HR/ module2_recruitment/index.php - Recruitment Hub
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -7,91 +7,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recruitment Management | Chap Chap Africa HRMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/module2_recruitment.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f9ff;
-            margin: 0;
-            padding: 0;
+        /* Strict Uniform & Compact Grid Layout */
+        .links-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Exactly 3 uniform columns across */
+            gap: 12px;
+            margin-top: 20px;
+            max-width: 900px;
         }
 
-        .main-content {
-            margin-left: 240px;
-            padding: 30px;
-            box-sizing: border-box;
-            min-height: 100vh;
-        }
-
-        h1 {
-            font-size: 22px;
-            color: #0f172a;
-            margin-bottom: 5px;
-        }
-
-        p.subtitle {
-            font-size: 13px;
-            color: #334155;
-            margin-bottom: 25px;
-        }
-
-        /* Horizontal row arrangement */
-        .cards-container {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        /* Minimized horizontal row button styling */
-        .module-card {
-            background-color: #ffffff;
-            border: 1px solid #bae6fd;
-            border-radius: 4px;
-            padding: 8px 12px;
+        .link-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0 15px;
+            text-align: center;
             text-decoration: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease-in-out;
             display: flex;
             align-items: center;
-            max-width: 240px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-            transition: background 0.2s, border-color 0.2s;
+            justify-content: center;
+            height: 55px; /* Compact and strictly fixed height for all boxes */
+            width: 100%;  /* Fills the exact grid cell width uniformly */
+            box-sizing: border-box;
         }
 
-        .module-card:hover {
-            background-color: #e0f2fe;
-            border-color: #0284c7;
+        .link-card:hover {
+            transform: translateY(-1px);
+            border-color: #7c3aed;
+            box-shadow: 0 3px 5px -1px rgba(124, 58, 237, 0.1);
         }
 
-        .module-card h3 {
+        .link-card h3 {
             margin: 0;
-            font-size: 12px;
-            color: #0284c7;
-            font-weight: bold;
+            font-size: 14px;
+            color: #1e293b;
+            font-weight: 600;
+            white-space: nowrap; /* Prevents awkward text wrapping */
         }
     </style>
 </head>
 <body>
-    <?php include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php'); ?>
+    <?php include(__DIR__ . '/../includes/sidebar.php'); ?>
 
-    <div class="main-content">
-        <h1>Recruitment Management</h1>
-        <p class="subtitle">Manage the recruitment pipeline.</p>
+    <div class="m2-container">
+        <header class="m2-header">
+            <h1 class="m2-page-title">Recruitment Management</h1>
+        </header>
 
-        <div class="cards-container">
-            <a href="index.php" class="module-card">
+        <div class="links-list">
+            <a href="index.php" class="link-card">
                 <h3>Dashboard</h3>
             </a>
-            <a href="requisitions.php" class="module-card">
+            <a href="requisitions.php" class="link-card">
                 <h3>Requisitions</h3>
             </a>
-            <a href="candidates.php" class="module-card">
+            <a href="candidates.php" class="link-card">
                 <h3>Candidates</h3>
             </a>
-            <a href="interviews.php" class="module-card">
+            <a href="interviews.php" class="link-card">
                 <h3>Interviews</h3>
             </a>
-            <a href="offers.php" class="module-card">
+            <a href="offers.php" class="link-card">
                 <h3>Offers</h3>
             </a>
-            <a href="emails.php" class="module-card">
+            <a href="emails.php" class="link-card">
                 <h3>Emails</h3>
             </a>
         </div>

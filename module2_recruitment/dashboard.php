@@ -30,52 +30,12 @@ $funnel_order = ['New Application', 'Screened', 'Shortlisted', 'Interviewed', 'O
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recruitment Analytics Dashboard - HRMS</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #eef2f7;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            margin: 20px 20px 40px 280px;
-            max-width: calc(100% - 320px);
-            padding: 28px;
-            box-sizing: border-box;
-            background: #ffffff;
-            min-height: calc(100vh - 60px);
-            border-radius: 18px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-        }
-        header {
-            border-bottom: 2px solid #eaeaea;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-        .grid-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #e5e5e5;
-        }
-        .card h3 {
-            margin-top: 0;
-            font-size: 16px;
-            color: #333;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 8px;
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/module2_recruitment.css">
 </head>
 <body>
 
-<?php include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php'); ?>
+<?php include(__DIR__ . '/../includes/sidebar.php'); ?>
 
 <div class="container">
     <header>

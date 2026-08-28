@@ -7,13 +7,19 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        // 1. Capture and hash the initial password provided by HR
+        $initial_password = trim($_POST['initial_password'] ?? 'TempPassword123!');
+        $hashed_password = password_hash($initial_password, PASSWORD_DEFAULT);
+        $role = $_POST['role'] ?? 'Employee';
+
         $sql = "INSERT INTO employees (
             first_name, last_name, date_of_birth, gender, nationality, marital_status, 
             personal_email, work_email, phone_number, physical_address, 
             next_of_kin_name, next_of_kin_relationship, next_of_kin_phone, next_of_kin_address,
-            department, job_title, reporting_manager, work_location, hire_date, employment_type, status
+            department, job_title, reporting_manager, work_location, hire_date, employment_type, status,
+            password, role
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )";
 
         $stmt = $pdo->prepare($sql);
@@ -38,16 +44,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['work_location'],
             $_POST['hire_date'],
             $_POST['employment_type'],
-            $_POST['status']
+            $_POST['status'],
+            $hashed_password,
+            $role
         ]);
 
         // Log the action into audit logs table using employee_id
         $employee_id = $pdo->lastInsertId();
         $audit_sql = "INSERT INTO employee_audit_logs (employee_id, action_performed, performed_by) VALUES (?, ?, ?)";
         $audit_stmt = $pdo->prepare($audit_sql);
-        $audit_stmt->execute([$employee_id, 'Employee record created', 'HR Admin']);
+        $audit_stmt->execute([$employee_id, 'Employee record and login credentials created', 'HR Admin']);
 
-        $message = "Employee successfully added to the system!";
+        $message = "Employee successfully added with login credentials (Initial Password: <strong>" . htmlspecialchars($initial_password) . "</strong>)!";
     } catch (PDOException $e) {
         $error = "Error adding employee: " . $e->getMessage();
     }
@@ -187,6 +195,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label>Work Email</label>
                     <input type="email" name="work_email" required>
+                </div>
+
+                <!-- NEW: System Access Credentials & Role -->
+                <div class="form-group">
+                    <label>Initial System Password</label>
+                    <input type="text" name="initial_password" value="TempPassword123!" required>
+                </div>
+
+                <div class="form-group">
+                    <label>System Access Role</label>
+                    <select name="role" required>
+                        <option value="Employee">Employee (ESS)</option>
+                        <option value="HOD">HOD (Head of Department)</option>
+                        <option value="Assistant HR">Assistant HR</option>
+                        <option value="HR">HR Manager</option>
+                        <option value="CEO">CEO</option>
+                        <option value="MD">MD (Managing Director)</option>
+                    </select>
                 </div>
 
                 <div class="form-group">

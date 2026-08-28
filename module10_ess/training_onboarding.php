@@ -29,9 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch available training courses
 $courses = $pdo->query("SELECT * FROM training_courses ORDER BY course_title ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch my enrolled courses
+// Fetch my enrolled courses (fixed to use vendor_type instead of category)
 $my_trainings_stmt = $pdo->prepare("
-    SELECT et.*, tc.course_title, tc.category 
+    SELECT et.*, tc.course_title, tc.vendor_type 
     FROM employee_training_enrollments et 
     JOIN training_courses tc ON et.course_id = tc.course_id 
     WHERE et.employee_id = ?
@@ -131,7 +131,7 @@ include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php');
         <thead>
             <tr>
                 <th>Course Title</th>
-                <th>Category</th>
+                <th>Vendor Type</th>
                 <th>Description</th>
                 <th>Action</th>
             </tr>
@@ -141,7 +141,7 @@ include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php');
                 <?php foreach ($courses as $c): ?>
                     <tr>
                         <td><strong><?php echo htmlspecialchars($c['course_title']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($c['category']); ?></td>
+                        <td><?php echo htmlspecialchars($c['vendor_type'] ?? 'N/A'); ?></td>
                         <td><?php echo htmlspecialchars($c['description']); ?></td>
                         <td>
                             <form method="POST">
@@ -165,7 +165,7 @@ include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php');
         <thead>
             <tr>
                 <th>Course Title</th>
-                <th>Category</th>
+                <th>Vendor Type</th>
                 <th>Status</th>
                 <th>Certificate</th>
             </tr>
@@ -175,7 +175,7 @@ include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php');
                 <?php foreach ($my_trainings as $mt): ?>
                     <tr>
                         <td><strong><?php echo htmlspecialchars($mt['course_title']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($mt['category']); ?></td>
+                        <td><?php echo htmlspecialchars($mt['vendor_type'] ?? 'N/A'); ?></td>
                         <td><strong><?php echo htmlspecialchars($mt['status']); ?></strong></td>
                         <td>
                             <?php if (!empty($mt['certificate_path'])): ?>

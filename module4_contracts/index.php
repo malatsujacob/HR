@@ -1,12 +1,19 @@
 <?php
 // module4_contracts/index.php - Contracts central module entry
+session_start();
+
+// Ensure session is active
+if (!isset($_SESSION['employee_id'])) {
+    header('Location: ../login.php');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contracts Management - hrms</title>
+    <title>Contracts Management - HRMS</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -78,16 +85,30 @@
             color: #0369a1;
             text-decoration: underline;
         }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #64748b;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .back-link:hover { color: #0284c7; }
     </style>
 </head>
 <body>
-    <?php include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php'); ?>
+    <?php 
+    // Safely load sidebar without failing hard or looping
+    $sidebar_file = $_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php';
+    if (file_exists($sidebar_file)) {
+        include($sidebar_file);
+    }
+    ?>
     
     <div class="container">
+        <a href="../index.php" class="back-link">&larr; Back to Control Center</a>
         <header>
-            <div style="width: 50px;"></div>
             <h1 class="page-title">Contracts Management</h1>
-            <div style="width: 50px;"></div>
         </header>
 
         <h2 class="section-title">Navigation Hub</h2>

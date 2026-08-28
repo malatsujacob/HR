@@ -1,5 +1,28 @@
 <?php
+session_start();
 require_once '../config/db.php';
+
+// 1. Ensure user is logged in at the application level
+if (!isset($_SESSION['employee_id']) && !isset($_SESSION['user_id']) && !isset($_SESSION['employees_hr_logged_in'])) {
+    header("Location: ../index.php?error=unauthorized");
+    exit();
+}
+
+$user_role = $_SESSION['user_role'] ?? $_SESSION['role'] ?? '';
+
+// 2. Strict HR & Assistant HR check + Developer Override shortcut
+$is_strict_hr = in_array($user_role, ['HR', 'Assistant HR']);
+$is_developer = (isset($_SESSION['is_developer']) && $_SESSION['is_developer'] === true) || ($user_role === 'Developer');
+
+if (!$is_strict_hr && !$is_developer) {
+    header("Location: ../index.php?error=access_denied");
+    exit();
+}
+
+// Access granted
+$is_hr_logged = true; 
+$success_msg = '';
+$error = '';
 
 // Handle standalone template download request
 if (isset($_GET['download_template'])) {
@@ -54,110 +77,109 @@ if (isset($_GET['download_template'])) {
     exit();
 }
 
-// Handle offer creation
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_offer'])) {
-    $candidate_input = trim($_POST['candidate_name']);
-    $salary_offered = $_POST['salary_offered'];
-    $position_title = trim($_POST['position_title']);
-    $start_date = $_POST['start_date'];
+// Handle Offer Creation & Updates
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['create_offer'])) {
+        $candidate_input = trim($_POST['candidate_name']);
+        $salary_offered = $_POST['salary_offered'];
+        $position_title = trim($_POST['position_title']);
+        $start_date = $_POST['start_date'];
 
-    // Split manual candidate name into first and last name
-    $name_parts = explode(' ', $candidate_input, 2);
-    $first_name = $name_parts[0];
-    $last_name = $name_parts[1] ?? '';
+        $name_parts = explode(' ', $candidate_input, 2);
+        $first_name = $name_parts[0];
+        $last_name = $name_parts[1] ?? '';
 
-    // Check if candidate already exists, else insert new candidate
-    $check_stmt = $pdo->prepare("SELECT candidate_id FROM candidates WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)");
-    $check_stmt->execute([$first_name, $last_name]);
-    $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        $check_stmt = $pdo->prepare("SELECT candidate_id FROM candidates WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)");
+        $check_stmt->execute([$first_name, $last_name]);
+        $existing = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($existing) {
-        $candidate_id = $existing['candidate_id'];
-    } else {
-        $ins_cand = $pdo->prepare("INSERT INTO candidates (first_name, last_name, pipeline_stage) VALUES (?, ?, 'Offered')");
-        $ins_cand->execute([$first_name, $last_name]);
-        $candidate_id = $pdo->lastInsertId();
-    }
-
-    $upload_dir = '../../uploads/offers/';
-    if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
-
-    $file_name = 'offer_' . uniqid() . '.html';
-    $destination = $upload_dir . $file_name;
-
-    $letter_content = "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset='UTF-8'>
-        <title>Offer Letter - Chap Chap Africa</title>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 40px; max-width: 800px; margin: auto; }
-            .header { text-align: center; border-bottom: 2px solid #0056b3; padding-bottom: 20px; margin-bottom: 30px; }
-            .company-name { font-size: 24px; font-weight: bold; color: #0056b3; }
-            .company-name span { color: #dc3545; }
-        </style>
-    </head>
-    <body>
-        <div class='header'>
-            <div class='company-name'><span style='color: #2563eb;'>CHAP CHAP</span> <span style='color: #dc2626;'>AFRICA</span></div>
-            <p>Official Employment Offer Letter</p>
-        </div>
-        <p>Date: " . date('F j, Y') . "</p>
-        <p>Dear <strong>" . htmlspecialchars($candidate_input) . "</strong>,</p>
-        <p>We are thrilled to offer you the position of <strong>" . htmlspecialchars($position_title) . "</strong> at Chap Chap Africa. We were deeply impressed by your skills and background, and we are confident you will make a fantastic addition to our team.</p>
-        <p><strong>Key Terms of Employment:</strong></p>
-        <ul>
-            <li><strong>Position:</strong> " . htmlspecialchars($position_title) . "</li>
-            <li><strong>Proposed Salary:</strong> UGX " . number_format($salary_offered, 2) . " per annum</li>
-            <li><strong>Expected Start Date:</strong> " . htmlspecialchars($start_date) . "</li>
-        </ul>
-        <p>Please review this offer and confirm your acceptance by signing below.</p>
-        <br><br>
-        <p>Sincerely,</p>
-        <p><strong>Human Resources Department</strong><br>Chap Chap Africa</p>
-    </body>
-    </html>
-    ";
-
-    file_put_contents($destination, $letter_content);
-    $offer_letter_path = 'uploads/offers/' . $file_name;
-
-    try {
-        $stmt = $pdo->prepare("INSERT INTO offers (candidate_id, salary_offered, offer_letter_path, offer_status) VALUES (?, ?, ?, 'Pending')");
-        $stmt->execute([$candidate_id, $salary_offered, $offer_letter_path]);
-        
-        $up_cand = $pdo->prepare("UPDATE candidates SET pipeline_stage = 'Offered' WHERE candidate_id = ?");
-        $up_cand->execute([$candidate_id]);
-
-        header("Location: offers.php");
-        exit();
-    } catch (PDOException $e) {
-        $error = "Error creating offer: " . $e->getMessage();
-    }
-}
-
-// Handle offer status update
-if (isset($_POST['update_offer_status'])) {
-    $offer_id = $_POST['offer_id'];
-    $candidate_id = $_POST['candidate_id'];
-    $new_status = $_POST['offer_status'];
-
-    try {
-        $stmt = $pdo->prepare("UPDATE offers SET offer_status = ? WHERE offer_id = ?");
-        $stmt->execute([$new_status, $offer_id]);
-
-        if ($new_status === 'Accepted') {
-            $cand_stmt = $pdo->prepare("UPDATE candidates SET pipeline_stage = 'Hired' WHERE candidate_id = ?");
-            $cand_stmt->execute([$candidate_id]);
+        if ($existing) {
+            $candidate_id = $existing['candidate_id'];
+        } else {
+            $ins_cand = $pdo->prepare("INSERT INTO candidates (first_name, last_name, pipeline_stage) VALUES (?, ?, 'Offered')");
+            $ins_cand->execute([$first_name, $last_name]);
+            $candidate_id = $pdo->lastInsertId();
         }
 
-        header("Location: offers.php");
-        exit();
-    } catch (PDOException $e) {
-        $error = "Error updating offer status: " . $e->getMessage();
+        $upload_dir = '../../uploads/offers/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+
+        $file_name = 'offer_' . uniqid() . '.html';
+        $destination = $upload_dir . $file_name;
+
+        $letter_content = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <title>Offer Letter - Chap Chap Africa</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 40px; max-width: 800px; margin: auto; }
+                .header { text-align: center; border-bottom: 2px solid #0056b3; padding-bottom: 20px; margin-bottom: 30px; }
+                .company-name { font-size: 24px; font-weight: bold; color: #0056b3; }
+                .company-name span { color: #dc3545; }
+            </style>
+        </head>
+        <body>
+            <div class='header'>
+                <div class='company-name'><span style='color: #2563eb;'>CHAP CHAP</span> <span style='color: #dc2626;'>AFRICA</span></div>
+                <p>Official Employment Offer Letter</p>
+            </div>
+            <p>Date: " . date('F j, Y') . "</p>
+            <p>Dear <strong>" . htmlspecialchars($candidate_input) . "</strong>,</p>
+            <p>We are thrilled to offer you the position of <strong>" . htmlspecialchars($position_title) . "</strong> at Chap Chap Africa. We were deeply impressed by your skills and background, and we are confident you will make a fantastic addition to our team.</p>
+            <p><strong>Key Terms of Employment:</strong></p>
+            <ul>
+                <li><strong>Position:</strong> " . htmlspecialchars($position_title) . "</li>
+                <li><strong>Proposed Salary:</strong> UGX " . number_format($salary_offered, 2) . " per annum</li>
+                <li><strong>Expected Start Date:</strong> " . htmlspecialchars($start_date) . "</li>
+            </ul>
+            <p>Please review this offer and confirm your acceptance by signing below.</p>
+            <br><br>
+            <p>Sincerely,</p>
+            <p><strong>Human Resources Department</strong><br>Chap Chap Africa</p>
+        </body>
+        </html>
+        ";
+
+        file_put_contents($destination, $letter_content);
+        $offer_letter_path = 'uploads/offers/' . $file_name;
+
+        try {
+            $stmt = $pdo->prepare("INSERT INTO offers (candidate_id, salary_offered, job_title, offer_letter_path, offer_status) VALUES (?, ?, ?, ?, 'Pending')");
+            $stmt->execute([$candidate_id, $salary_offered, $position_title, $offer_letter_path]);
+            
+            $up_cand = $pdo->prepare("UPDATE candidates SET pipeline_stage = 'Offered' WHERE candidate_id = ?");
+            $up_cand->execute([$candidate_id]);
+
+            header("Location: offers.php");
+            exit();
+        } catch (PDOException $e) {
+            $error = "Error creating offer: " . $e->getMessage();
+        }
+    }
+
+    if (isset($_POST['update_offer_status'])) {
+        $offer_id = $_POST['offer_id'];
+        $candidate_id = $_POST['candidate_id'];
+        $new_status = $_POST['offer_status'];
+
+        try {
+            $stmt = $pdo->prepare("UPDATE offers SET offer_status = ? WHERE offer_id = ?");
+            $stmt->execute([$new_status, $offer_id]);
+
+            if ($new_status === 'Accepted') {
+                $cand_stmt = $pdo->prepare("UPDATE candidates SET pipeline_stage = 'Hired' WHERE candidate_id = ?");
+                $cand_stmt->execute([$candidate_id]);
+            }
+
+            header("Location: offers.php");
+            exit();
+        } catch (PDOException $e) {
+            $error = "Error updating offer status: " . $e->getMessage();
+        }
     }
 }
 
@@ -175,141 +197,13 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Offer Management - HRMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/module2_recruitment.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f9ff;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            margin: 20px auto 40px auto;
-            margin-left: 280px;
-            max-width: calc(100% - 320px);
-            padding: 24px;
-            box-sizing: border-box;
-            background: #ffffff;
-            min-height: calc(100vh - 60px);
-            border-radius: 10px;
-            border: 1px solid #bae6fd;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.05);
-        }
-        header {
-            border-bottom: 2px solid #e0f2fe;
-            padding-bottom: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .page-title {
-            margin: 0;
-            color: #0369a1;
-            font-size: 18px;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: center;
-            width: 100%;
-        }
-        .section-title {
-            text-align: center;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0369a1;
-            margin-top: 25px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .btn-primary {
-            background-color: #0284c7;
-            color: white;
-            padding: 8px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 12px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .btn-primary:hover {
-            background-color: #0369a1;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 5px;
-            margin-bottom: 25px;
-            font-size: 12px;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #e0f2fe;
-        }
-        th {
-            background-color: #f0f9ff;
-            color: #0369a1;
-            font-weight: bold;
-        }
-        tr:hover {
-            background-color: #f8fafc;
-        }
-        .form-container {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 6px;
-            border: 1px solid #bae6fd;
-            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.03);
-            margin-top: 15px;
-        }
-        .form-group {
-            margin-bottom: 10px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 3px;
-            font-weight: bold;
-            font-size: 12px;
-            color: #334155;
-        }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 7px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 12px;
-        }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            border-color: #0284c7;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.1);
-        }
-        .badge {
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        .badge-pending { background-color: #f59e0b; color: white; }
-        .badge-accepted { background-color: #22c55e; color: white; }
-        .badge-rejected { background-color: #ef4444; color: white; }
-        .badge-ignored { background-color: #64748b; color: white; }
-        .template-preview-box {
-            background: #f0f9ff;
-            border: 1px dashed #7dd3fc;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .cca-brand {
-            font-weight: 800;
-            letter-spacing: 0.5px;
-        }
+        .btn-purple { background: #7c3aed; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; }
+        .alert-success { background: #dcfce7; color: #166534; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; }
+        .alert-error { background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; }
+        .role-indicator { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; }
     </style>
     <script>
         function downloadLetterTemplate(e) {
@@ -330,20 +224,28 @@ try {
 </head>
 <body>
 
-<?php include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php'); ?>
+<?php include(__DIR__ . '/../includes/sidebar.php'); ?>
 
 <div class="container">
-    <header>
-        <a href="index.php" class="btn-secondary" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back</a>
-        <h1 class="page-title">Offer Management</h1>
-        <div style="width: 50px;"></div>
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="index.php" class="btn-secondary" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back</a>
+            <h1 class="page-title" style="margin: 0;">Offer Management</h1>
+        </div>
+        <div>
+            <span class="role-indicator">Role: <?php echo htmlspecialchars($user_role ?: ($is_developer ? 'Developer Override' : 'HR')); ?></span>
+        </div>
     </header>
 
-    <?php if (isset($error)): ?>
-        <div style="background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px;"><?php echo htmlspecialchars($error); ?></div>
+    <?php if (!empty($success_msg)): ?>
+        <div class="alert-success"><?php echo $success_msg; ?></div>
     <?php endif; ?>
 
-    <!-- Candidate Offers Status Table on Top -->
+    <?php if (!empty($error)): ?>
+        <div class="alert-error"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+
+    <!-- Candidate Offers Status Table -->
     <h2 class="section-title">Candidate Offers Status</h2>
     <table>
         <thead>
@@ -403,9 +305,13 @@ try {
         </tbody>
     </table>
 
-    <!-- Generate Offer Form at the Bottom -->
+    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+
+    <!-- GENERATE OFFER FORM -->
     <div class="form-container">
-        <h2 class="section-title" style="margin-top: 0;">Generate <span class="cca-brand"><span style="color: #2563eb;">CHAP CHAP</span> <span style="color: #dc2626;">AFRICA</span></span> Job Offer</h2>
+        <h2 class="section-title" style="margin-top: 0; color: #7c3aed;">
+            ➕ Generate <span class="cca-brand"><span style="color: #2563eb;">CHAP CHAP</span> <span style="color: #dc2626;">AFRICA</span></span> Job Offer
+        </h2>
         
         <div class="template-preview-box">
             <div>
@@ -441,6 +347,7 @@ try {
             <button type="submit" name="create_offer" class="btn-primary">Save Offer Record & Generate Letter</button>
         </form>
     </div>
+
 </div>
 
 </body>

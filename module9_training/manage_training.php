@@ -7,20 +7,63 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$userRole = strtolower(trim($_SESSION['user_role'] ?? ''));
-$allowedRoles = ['admin', 'hr'];
-$isHRAdmin = in_array($userRole, $allowedRoles, true);
+$success_msg = '';
+$error_msg = '';
 
-$accessDenied = false;
-if (!$isHRAdmin) {
-    $accessDenied = true;
+// Ensure default HR password table exists
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS hr_settings (
+            id INT PRIMARY KEY,
+            hr_password VARCHAR(255) NOT NULL
+        )
+    ");
+    $pdo->exec("
+        INSERT INTO hr_settings (id, hr_password)
+        SELECT 1, '1234'
+        WHERE NOT EXISTS (SELECT 1 FROM hr_settings WHERE id = 1)
+    ");
+} catch (Exception $e) {}
+
+// Handle HR Login for Training Module
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hr_login'])) {
+    $entered_pass = trim($_POST['hr_password_input'] ?? '');
+    $stmt = $pdo->query("SELECT hr_password FROM hr_settings WHERE id = 1");
+    $row_settings = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($row_settings && $entered_pass === $row_settings['hr_password']) {
+        $_SESSION['training_hr_logged_in'] = true;
+        $_SESSION['show_training_login_form'] = false;
+        $success_msg = "Authenticated successfully!";
+    } else {
+        $_SESSION['show_training_login_form'] = true;
+        $error_msg = "Incorrect password.";
+    }
 }
+
+// Handle HR Logout for Training Module
+if (isset($_GET['logout_hr'])) {
+    unset($_SESSION['training_hr_logged_in']);
+    unset($_SESSION['show_training_login_form']);
+    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?'));
+    exit;
+}
+
+// Toggle Inline Login Prompt
+if (isset($_GET['toggle_login_form'])) {
+    $_SESSION['show_training_login_form'] = !($_SESSION['show_training_login_form'] ?? false);
+    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?'));
+    exit;
+}
+
+$is_hr_logged = $_SESSION['training_hr_logged_in'] ?? false;
+$show_login_form = $_SESSION['show_training_login_form'] ?? false;
 
 $trainModel = new TrainingModel($pdo);
 $msg = '';
 $employeeOptions = $pdo->query("SELECT employee_id, first_name, last_name FROM employees ORDER BY first_name, last_name")->fetchAll(PDO::FETCH_ASSOC);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_hr_logged) {
     if (isset($_POST['add_course'])) {
         $trainModel->addCourse($_POST);
         $msg = 'Training session successfully designed and published.';
@@ -65,6 +108,85 @@ $enrollments = $trainModel->getEnrollments();
         th { background: #eff6ff; color: #1e293b; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
         tr:hover { background-color: #f8fafc; }
         .notice { background: #dbeafe; border: 1px solid #bfdbfe; padding: 10px 14px; border-radius: 4px; color: #1e40af; margin-bottom: 15px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+        .box-container { 
+            background: #eff6ff; 
+            border: 1px solid #bfdbfe; 
+            border-radius: 6px; 
+            padding: 16px; 
+            margin-top: 15px;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+        .btn-purple { 
+            background: #7c3aed; 
+            color: white; 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            font-size: 11px; 
+            font-weight: 900; 
+            border: none; 
+            cursor: pointer; 
+            text-transform: uppercase;
+        }
+        .btn-red { 
+            background: #dc2626; 
+            color: white; 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            font-size: 10px; 
+            font-weight: 900; 
+            text-decoration: none; 
+            border: none; 
+            cursor: pointer; 
+            text-transform: uppercase;
+        }
+        .btn-link-action { 
+            background: none; 
+            border: none; 
+            padding: 0; 
+            font-size: 11px; 
+            font-weight: 900; 
+            color: #1e293b; 
+            cursor: pointer; 
+            text-align: left; 
+            width: 100%; 
+            display: block; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-link-action:hover { color: #2563eb; }
+        .login-input { 
+            font-size: 11px; 
+            padding: 7px 10px; 
+            width: 200px; 
+            box-sizing: border-box; 
+            border: 1px solid #bfdbfe; 
+            border-radius: 4px; 
+            background: #fff; 
+            color: #1e293b; 
+        }
+        .alert-error { 
+            background: #fee2e2; 
+            color: #991b1b; 
+            padding: 8px; 
+            border-radius: 4px; 
+            margin-bottom: 12px; 
+            font-size: 11px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            border: 1px solid #fecaca;
+        }
+        .alert-success { 
+            background: #dcfce7; 
+            color: #166534; 
+            padding: 8px; 
+            border-radius: 4px; 
+            margin-bottom: 12px; 
+            font-size: 11px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            border: 1px solid #bbf7d0; 
+        }
     </style>
 </head>
 <body>
@@ -74,18 +196,50 @@ $enrollments = $trainModel->getEnrollments();
 <div class="container">
     <header>
         <h1><span class="brand-title">CHAP CHAP</span> <span class="brand-title" style="color: #3b82f6;">AFRICA</span> - HR Training Management</h1>
+        <div>
+            <?php if ($is_hr_logged): ?>
+                <a href="?logout_hr=1" class="btn-red">Logout Module</a>
+            <?php endif; ?>
+        </div>
     </header>
+
+    <?php if (!empty($success_msg)): ?>
+        <div class="alert-success" style="max-width: 400px;"><?php echo $success_msg; ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($error_msg)): ?>
+        <div class="alert-error" style="max-width: 400px;"><?php echo $error_msg; ?></div>
+    <?php endif; ?>
 
     <?php if ($msg): ?>
         <div class="notice"><?php echo htmlspecialchars($msg); ?></div>
     <?php endif; ?>
 
-    <?php if (!$isHRAdmin): ?>
-        <div class="card">
-            <h2>HR Access Required</h2>
-            <p style="font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase; margin-bottom: 12px;">You are currently not logged in as HR or Admin. To use the training setup tools, please log in as HR.</p>
-            <p><a href="hr_login.php" class="btn">Login as HR</a></p>
-            <p style="margin-top: 12px; font-size: 11px; color: #64748b; font-weight: 900; text-transform: uppercase;">If you only need to view scheduled trainings, use the Training Schedule page.</p>
+    <?php if (!$is_hr_logged): ?>
+        <div class="box-container">
+            <?php if (!$show_login_form): ?>
+                <form method="GET" style="margin: 0;">
+                    <input type="hidden" name="toggle_login_form" value="1">
+                    <button type="submit" class="btn-link-action">
+                        🔒 Training Management
+                    </button>
+                </form>
+            <?php else: ?>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <form method="GET" style="margin: 0;">
+                        <input type="hidden" name="toggle_login_form" value="1">
+                        <button type="submit" class="btn-link-action">
+                            🔒 Training Management
+                        </button>
+                    </form>
+                    
+                    <form method="POST" style="display: flex; gap: 8px; align-items: center; margin: 0; padding-top: 5px; border-top: 1px solid #bfdbfe;">
+                        <input type="password" name="hr_password_input" class="login-input" placeholder="Enter password" required autofocus>
+                        <button type="submit" name="hr_login" class="btn-purple">Login</button>
+                        <a href="?toggle_login_form=1" style="font-size: 11px; color: #64748b; text-decoration: none; padding: 6px 10px; font-weight: 900; text-transform: uppercase;">Cancel</a>
+                    </form>
+                </div>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <div class="card">

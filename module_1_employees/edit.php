@@ -4,6 +4,7 @@ require_once '../config/db.php';
 
 $message = '';
 $error = '';
+$reset_msg = '';
 
 // Get the employee ID from the URL query string
 $employee_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -13,10 +14,29 @@ if ($employee_id <= 0) {
     exit;
 }
 
-// Handle Form Submission for Update
+// Handle Form Submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Check if action is a soft delete request
-    if (isset($_POST['action']) && $_POST['action'] === 'soft_delete') {
+    
+    // 1. Handle HR Password Reset Request
+    if (isset($_POST['hr_reset_password'])) {
+        $temp_password = 'TempPassword123!';
+        $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
+
+        try {
+            $stmt = $pdo->prepare("UPDATE employees SET password = ? WHERE employee_id = ?");
+            $stmt->execute([$hashed_password, $employee_id]);
+
+            // Log the password reset action
+            $audit_stmt = $pdo->prepare("INSERT INTO employee_audit_logs (employee_id, action_performed, performed_by) VALUES (?, ?, ?)");
+            $audit_stmt->execute([$employee_id, 'Password reset by HR', 'HR Admin']);
+
+            $reset_msg = "Password successfully reset! Give this temporary password to the employee: <strong style='background: #fef08a; padding: 2px 6px; border-radius: 4px;'>{$temp_password}</strong>";
+        } catch (PDOException $e) {
+            $error = "Error resetting password: " . $e->getMessage();
+        }
+    }
+    // 2. Handle Soft Delete Request
+    elseif (isset($_POST['action']) && $_POST['action'] === 'soft_delete') {
         try {
             $stmt = $pdo->prepare("UPDATE employees SET status = 'Exited' WHERE employee_id = ?");
             $stmt->execute([$employee_id]);
@@ -30,14 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException $e) {
             $error = "Error updating status: " . $e->getMessage();
         }
-    } else {
-        // Standard profile update
+    } 
+    // 3. Standard Profile Update
+    else {
         try {
             $sql = "UPDATE employees SET 
                 first_name = ?, last_name = ?, date_of_birth = ?, gender = ?, nationality = ?, marital_status = ?, 
                 personal_email = ?, work_email = ?, phone_number = ?, physical_address = ?, 
                 next_of_kin_name = ?, next_of_kin_relationship = ?, next_of_kin_phone = ?, next_of_kin_address = ?,
-                department = ?, job_title = ?, reporting_manager = ?, work_location = ?, hire_date = ?, employment_type = ?, status = ?
+                department = ?, job_title = ?, reporting_manager = ?, work_location = ?, hire_date = ?, employment_type = ?, status = ?, role = ?
                 WHERE employee_id = ?";
 
             $stmt = $pdo->prepare($sql);
@@ -63,12 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['hire_date'],
                 $_POST['employment_type'],
                 $_POST['status'],
+                $_POST['role'],
                 $employee_id
             ]);
 
             // Log the update action into audit logs
             $audit_stmt = $pdo->prepare("INSERT INTO employee_audit_logs (employee_id, action_performed, performed_by) VALUES (?, ?, ?)");
-            $audit_stmt->execute([$employee_id, 'Employee record updated', 'HR Admin']);
+            $audit_stmt->execute([$employee_id, 'Employee record and role updated', 'HR Admin']);
 
             $message = "Employee record successfully updated!";
         } catch (PDOException $e) {
@@ -116,6 +138,12 @@ try {
 
     <?php if ($error): ?>
         <div class="alert-error"><?php echo $error; ?></div>
+    <?php endif; ?>
+
+    <?php if ($reset_msg): ?>
+        <div style="background: #fefce8; border: 1px solid #fde047; color: #854d0e; padding: 12px; border-radius: 4px; font-size: 13px; margin-bottom: 20px; font-weight: bold;">
+            <?php echo $reset_msg; ?>
+        </div>
     <?php endif; ?>
 
     <div class="card">
@@ -207,6 +235,19 @@ try {
                     <input type="email" name="work_email" value="<?php echo htmlspecialchars($employee['work_email']); ?>" required>
                 </div>
 
+                <!-- NEW: System Access Role Selection -->
+                <div class="form-group">
+                    <label>System Access Role</label>
+                    <select name="role" required>
+                        <option value="Employee" <?php echo ($employee['role'] ?? '') === 'Employee' ? 'selected' : ''; ?>>Employee (ESS)</option>
+                        <option value="HOD" <?php echo ($employee['role'] ?? '') === 'HOD' ? 'selected' : ''; ?>>HOD (Head of Department)</option>
+                        <option value="Assistant HR" <?php echo ($employee['role'] ?? '') === 'Assistant HR' ? 'selected' : ''; ?>>Assistant HR</option>
+                        <option value="HR" <?php echo ($employee['role'] ?? '') === 'HR' ? 'selected' : ''; ?>>HR Manager</option>
+                        <option value="CEO" <?php echo ($employee['role'] ?? '') === 'CEO' ? 'selected' : ''; ?>>CEO</option>
+                        <option value="MD" <?php echo ($employee['role'] ?? '') === 'MD' ? 'selected' : ''; ?>>MD (Managing Director)</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>Department</label>
                     <input type="text" name="department" value="<?php echo htmlspecialchars($employee['department']); ?>" required>
@@ -252,16 +293,28 @@ try {
                     </select>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <div style="display: flex; gap: 10px; margin-top: 20px; grid-column: span 2;">
                     <button type="submit" class="btn-primary">Update Changes</button>
                 </div>
             </div>
         </form>
 
+        <!-- HR Password Reset Form Section -->
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #cbd5e1;">
+            <h3 style="font-size: 13px; color: #b45309; text-transform: uppercase; margin-bottom: 5px;">🔒 Security & Password Reset</h3>
+            <p style="font-size: 12px; color: #475569; margin-bottom: 10px;">If this employee forgot their password, HR can reset it to a temporary default here.</p>
+            
+            <form method="POST" action="" onsubmit="return confirm('Are you sure you want to reset this employee\'s password to the default temporary value?');">
+                <button type="submit" name="hr_reset_password" style="background-color: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase;">
+                    🔑 Reset Employee Password
+                </button>
+            </form>
+        </div>
+
         <!-- Soft Delete Form -->
-        <form method="POST" action="" onsubmit="return confirm('Are you sure you want to soft-delete this employee? Their status will be set to Exited.');" style="margin-top: 15px;">
+        <form method="POST" action="" onsubmit="return confirm('Are you sure you want to soft-delete this employee? Their status will be set to Exited.');" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #cbd5e1;">
             <input type="hidden" name="action" value="soft_delete">
-            <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">Soft Delete Employee</button>
+            <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase;">Soft Delete Employee</button>
         </form>
     </div>
 </div>

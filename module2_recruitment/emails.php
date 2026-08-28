@@ -1,5 +1,30 @@
 <?php
+session_start();
 require_once '../config/db.php';
+
+// 1. Ensure user is logged in at the application level
+if (!isset($_SESSION['employee_id']) && !isset($_SESSION['user_id']) && !isset($_SESSION['employees_hr_logged_in'])) {
+    header("Location: ../index.php?error=unauthorized");
+    exit();
+}
+
+$user_role = $_SESSION['user_role'] ?? $_SESSION['role'] ?? '';
+
+// 2. Strict HR & Assistant HR check + Developer Override shortcut
+$is_strict_hr = in_array($user_role, ['HR', 'Assistant HR']);
+$is_developer = (isset($_SESSION['is_developer']) && $_SESSION['is_developer'] === true) || ($user_role === 'Developer');
+
+if (!$is_strict_hr && !$is_developer) {
+    header("Location: ../index.php?error=access_denied");
+    exit();
+}
+
+// Access granted
+$success_msg = '';
+$error_msg = '';
+
+// Capture candidate ID passed from candidates.php table link
+$preselected_candidate_id = $_GET['candidate_id'] ?? '';
 
 // Fetch candidates for the email recipient dropdown
 try {
@@ -10,12 +35,11 @@ try {
 }
 
 // Handle simulated/live email dispatch logging
-$success_msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
-    $candidate_id = $_POST['candidate_id'];
-    $template_type = $_POST['template_type'];
-    $subject = $_POST['subject'];
-    $body = $_POST['body'];
+    $candidate_id = $_POST['candidate_id'] ?? '';
+    $template_type = $_POST['template_type'] ?? '';
+    $subject = $_POST['subject'] ?? '';
+    $body = $_POST['body'] ?? '';
 
     // Fetch candidate email for verification
     $cand_stmt = $pdo->prepare("SELECT email, first_name FROM candidates WHERE candidate_id = ?");
@@ -23,8 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
     $recipient = $cand_stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($recipient) {
-        // In local XAMPP without sendmail, we log the dispatch to a session or display a clear confirmation view
         $success_msg = "Successfully dispatched '" . htmlspecialchars($template_type) . "' email to " . htmlspecialchars($recipient['email']) . "!";
+    } else {
+        $error_msg = "Selected candidate recipient could not be found.";
     }
 }
 ?>
@@ -34,112 +59,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto-Email Templates - HRMS</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/module2_recruitment.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f9ff;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            margin: 20px auto 40px auto;
-            margin-left: 280px;
-            max-width: calc(100% - 320px);
-            padding: 24px;
-            box-sizing: border-box;
-            background: #ffffff;
-            min-height: calc(100vh - 60px);
-            border-radius: 10px;
-            border: 1px solid #bae6fd;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.05);
-        }
-        header {
-            border-bottom: 2px solid #e0f2fe;
-            padding-bottom: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .page-title {
-            margin: 0;
-            color: #0369a1;
-            font-size: 18px;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: center;
-            width: 100%;
-        }
-        .section-title {
-            text-align: center;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0369a1;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .btn-primary {
-            background-color: #0284c7;
-            color: white;
-            padding: 8px 12px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 12px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .btn-primary:hover {
-            background-color: #0369a1;
-        }
-        .form-container {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 6px;
-            border: 1px solid #bae6fd;
-            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.03);
-            margin-top: 15px;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-        .form-group {
-            margin-bottom: 10px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 3px;
-            font-weight: bold;
-            font-size: 12px;
-            color: #334155;
-        }
-        .form-group select, .form-group textarea, .form-group input {
-            width: 100%;
-            padding: 7px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 12px;
-        }
-        .form-group select:focus, .form-group textarea:focus, .form-group input:focus {
-            border-color: #0284c7;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.1);
-        }
-        .preview-box {
-            background: #f0f9ff;
-            border: 1px dashed #7dd3fc;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 15px;
-        }
+        .btn-purple { background: #7c3aed; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; border: none; cursor: pointer; }
+        .alert-success { background: #dcfce7; color: #166534; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px; }
+        .role-indicator { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; }
     </style>
     <script>
         function updateTemplate() {
-            const type = document.getElementById('template_type').value;
+            const typeElem = document.getElementById('template_type');
+            if (!typeElem) return;
+            const type = typeElem.value;
             const subjectField = document.getElementById('subject');
             const bodyField = document.getElementById('body');
+
+            if (!subjectField || !bodyField) return;
 
             if (type === 'Application Received') {
                 subjectField.value = 'We have received your job application - HRMS';
@@ -159,30 +95,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
 </head>
 <body>
 
-<?php include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php'); ?>
+<?php include(__DIR__ . '/../includes/sidebar.php'); ?>
 
 <div class="container">
-    <header>
-        <a href="index.php" class="btn-secondary" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back</a>
-        <h1 class="page-title">Auto-Email Templates & Dispatch</h1>
-        <div style="width: 50px;"></div>
+    <header style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="candidates.php" class="btn-secondary" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back to Candidates</a>
+            <h1 class="page-title" style="margin: 0;">Auto-Email Templates & Dispatch</h1>
+        </div>
+        <div>
+            <span class="role-indicator">Role: <?php echo htmlspecialchars($user_role ?: ($is_developer ? 'Developer Override' : 'HR')); ?></span>
+        </div>
     </header>
 
     <?php if (!empty($success_msg)): ?>
-        <div style="background: #dcfce7; color: #166534; padding: 8px; border-radius: 4px; margin-bottom: 12px; border: 1px solid #bbf7d0; font-size: 12px;">
+        <div class="alert-success">
             <strong>Success:</strong> <?php echo $success_msg; ?>
         </div>
     <?php endif; ?>
 
-    <div class="form-container">
-        <h3 class="section-title" style="margin-top: 0; text-align: left;">Trigger & Preview Candidate Email</h3>
+    <?php if (!empty($error_msg)): ?>
+        <div class="alert-error"><?php echo $error_msg; ?></div>
+    <?php endif; ?>
+
+    <!-- EMAIL DISPATCH FORM -->
+    <div class="form-container" style="margin-top: 20px;">
+        <h3 class="section-title" style="margin-top: 0; text-align: left; color: #7c3aed;">✉️ Trigger & Preview Candidate Email</h3>
         <form method="POST">
             <div class="form-group">
                 <label>Select Candidate Recipient</label>
                 <select name="candidate_id" required>
                     <option value="">-- Choose Candidate --</option>
                     <?php foreach ($candidates as $cand): ?>
-                        <option value="<?php echo $cand['candidate_id']; ?>">
+                        <option value="<?php echo $cand['candidate_id']; ?>" 
+                            <?php if ($preselected_candidate_id == $cand['candidate_id']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($cand['first_name'] . ' ' . $cand['last_name'] . ' (' . $cand['email'] . ') - Stage: ' . $cand['pipeline_stage']); ?>
                         </option>
                     <?php endforeach; ?>
@@ -219,11 +165,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
             </div>
         </form>
     </div>
+
 </div>
 
 <script>
-    // Initialize default template text on page load
-    updateTemplate();
+    window.onload = function() {
+        if (document.getElementById('template_type')) {
+            updateTemplate();
+        }
+    };
 </script>
 
 </body>

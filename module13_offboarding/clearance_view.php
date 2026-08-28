@@ -67,9 +67,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
-            // 1. Flip Status Hook in Module 1 to Exited
-            $hookStmt = $pdo->prepare("UPDATE employees SET status = 'Exited' WHERE id = ?");
-            $hookStmt->execute([$employee_id]);
+            // 1. Move employee record to offboarded_employees (transactional)
+            $pdo->exec("CREATE TABLE IF NOT EXISTS offboarded_employees (
+                offboard_id SERIAL PRIMARY KEY,
+                original_employee_id INTEGER,
+                first_name VARCHAR(50),
+                last_name VARCHAR(50),
+                personal_email VARCHAR(100),
+                work_email VARCHAR(100),
+                phone_number VARCHAR(50),
+                department VARCHAR(50),
+                job_title VARCHAR(100),
+                hire_date DATE,
+                employment_type VARCHAR(50),
+                status VARCHAR(50),
+                profile_picture VARCHAR(255),
+                document_path VARCHAR(255),
+                bank_name VARCHAR(100),
+                account_number VARCHAR(100),
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP,
+                exit_reason TEXT,
+                last_working_day DATE,
+                exit_interview_reason VARCHAR(255),
+                exit_interview_text TEXT,
+                do_not_rehire BOOLEAN DEFAULT FALSE,
+                offboarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            $empStmt = $pdo->prepare("SELECT * FROM employees WHERE employee_id = ?");
+            $empStmt->execute([$employee_id]);
+            $employee = $empStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($employee) {
+                $ins = $pdo->prepare("INSERT INTO offboarded_employees (
+                    original_employee_id, first_name, last_name, personal_email, work_email, phone_number,
+                    department, job_title, hire_date, employment_type, status, profile_picture, document_path,
+                    bank_name, account_number, created_at, updated_at, exit_reason, last_working_day, exit_interview_reason,
+                    exit_interview_text, do_not_rehire
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+                $ins->execute([
+                    $employee['employee_id'],
+                    $employee['first_name'] ?? null,
+                    $employee['last_name'] ?? null,
+                    $employee['personal_email'] ?? null,
+                    $employee['work_email'] ?? null,
+                    $employee['phone_number'] ?? null,
+                    $employee['department'] ?? null,
+                    $employee['job_title'] ?? null,
+                    $employee['hire_date'] ?? null,
+                    $employee['employment_type'] ?? null,
+                    'Exited',
+                    $employee['profile_picture'] ?? null,
+                    $employee['document_path'] ?? null,
+                    $employee['bank_name'] ?? null,
+                    $employee['account_number'] ?? null,
+                    $employee['created_at'] ?? null,
+                    $employee['updated_at'] ?? null,
+                    $exitRecord['exit_reason'] ?? null,
+                    $exitRecord['last_working_day'] ?? null,
+                    $exitRecord['exit_interview_reason'] ?? null,
+                    $exitRecord['exit_interview_text'] ?? null,
+                    $do_not_rehire
+                ]);
+
+                // Mark original employee as Exited (preserve for archival)
+                $updEmp = $pdo->prepare("UPDATE employees SET status = 'Exited' WHERE employee_id = ?");
+                $updEmp->execute([$employee_id]);
+
+                // Create offboard audit if missing and insert snapshot
+                $pdo->exec("CREATE TABLE IF NOT EXISTS offboard_audit (
+                    audit_id SERIAL PRIMARY KEY,
+                    offboard_id INTEGER,
+                    original_employee_id INTEGER,
+                    snapshot JSONB,
+                    action VARCHAR(50),
+                    actor VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )");
+
+                $snapshot = json_encode($employee);
+                $auditIns = $pdo->prepare("INSERT INTO offboard_audit (offboard_id, original_employee_id, snapshot, action) VALUES (?, ?, ?, 'offboarded')");
+                $auditIns->execute([$ins->rowCount() ? $pdo->lastInsertId('offboarded_employees_offboard_id_seq') : null, $employee['employee_id'] ?? null, $snapshot]);
+            }
 
             // 2. Update Exit Request Status & Blacklist Flag
             $exitStmt = $pdo->prepare("UPDATE exit_requests SET status = 'Finalized / Exited', do_not_rehire_flag = ? WHERE id = ?");

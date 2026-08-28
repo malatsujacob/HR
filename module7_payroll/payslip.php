@@ -10,18 +10,18 @@ $slip = false;
 
 try {
     if ($payslip_id <= 0) {
-        $stmt = $pdo->query("SELECT payslip_id FROM employee_payslips ORDER BY payslip_id DESC LIMIT 1");
+        $stmt = $pdo->query("SELECT payroll_id FROM payroll_records ORDER BY payroll_id DESC LIMIT 1");
         $latest_slip = $stmt->fetch(PDO::FETCH_ASSOC);
-        $payslip_id = $latest_slip['payslip_id'] ?? 0;
+        $payslip_id = $latest_slip['payroll_id'] ?? 0;
     }
 
     if ($payslip_id > 0) {
         $stmt = $pdo->prepare("
-            SELECT p.*, e.first_name, e.last_name, e.department, p.disbursement_type, p.target_account, r.run_month
-            FROM employee_payslips p
+            SELECT p.*, e.first_name, e.last_name, e.department, r.run_month
+            FROM payroll_records p
             JOIN employees e ON p.employee_id = e.employee_id
-            JOIN payroll_runs r ON p.run_id = r.run_id
-            WHERE p.payslip_id = ?
+            JOIN payroll_runs r ON p.employee_id = r.employee_id
+            WHERE p.payroll_id = ?
         ");
         $stmt->execute([$payslip_id]);
         $slip = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -38,13 +38,13 @@ if (!$slip) {
         'department' => 'Administration',
         'disbursement_type' => 'Bank Transfer (UGX)',
         'target_account' => '100020304050',
-        'base_salary' => 2500000.00,
+        'basic_salary' => 2500000.00,
         'unpaid_leave_deduction' => 0.00,
-        'overtime_amount' => 150000.00,
-        'paye_tax' => 350000.00,
+        'overtime_pay' => 150000.00,
+        'tax_paye' => 350000.00,
         'pension_deduction' => 125000.00,
-        'health_insurance' => 50000.00,
-        'loan_deduction' => 0.00,
+        'insurance_deduction' => 50000.00,
+        'allowances' => 0.00,
         'net_pay' => 2125000.00
     ];
 }
@@ -83,22 +83,18 @@ include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php');
                 <small style="color: #64748b;">Official Employee Payslip (UGX)</small>
             </div>
             <div style="text-align: right;">
-                <strong style="color: #1e293b;">Period: <?php echo htmlspecialchars($slip['run_month']); ?></strong>
+                <strong style="color: #1e293b;">Period: <?php echo htmlspecialchars($slip['pay_period'] ?? $slip['run_month'] ?? 'Current'); ?></strong>
             </div>
         </header>
-
-        <div class="notice-banner">
-            ℹ️ Displaying active layout view. Once your payroll engine executes live PostgreSQL runs, actual employee records will automatically populate here.
-        </div>
 
         <div class="grid">
             <div>
                 <p style="margin: 4px 0;"><strong>Employee:</strong> <?php echo htmlspecialchars($slip['first_name'] . ' ' . $slip['last_name']); ?></p>
-                <p style="margin: 4px 0;"><strong>Department:</strong> <?php echo htmlspecialchars($slip['department'] ?? 'N/A'); ?></p>
+                <p style="margin: 4px 0;"><strong>Department:</strong> <?php echo htmlspecialchars($slip['department'] ?? 'Administration'); ?></p>
             </div>
             <div>
-                <p style="margin: 4px 0;"><strong>Channel:</strong> <?php echo htmlspecialchars($slip['disbursement_type'] ?? 'Bank Transfer'); ?></p>
-                <p style="margin: 4px 0;"><strong>Target Account:</strong> <?php echo htmlspecialchars($slip['target_account'] ?? '0000000000'); ?></p>
+                <p style="margin: 4px 0;"><strong>Channel:</strong> Bank Transfer</p>
+                <p style="margin: 4px 0;"><strong>Target Account:</strong> N/A</p>
             </div>
         </div>
 
@@ -109,33 +105,33 @@ include($_SERVER['DOCUMENT_ROOT'] . '/HR/includes/sidebar.php');
             <tbody>
                 <tr>
                     <td>Base Salary</td>
-                    <td><?php echo number_format($slip['base_salary'], 2); ?></td>
+                    <td><?php echo number_format($slip['basic_salary'] ?? 0, 2); ?></td>
                     <td>Unpaid Leave Deduction</td>
-                    <td><?php echo number_format($slip['unpaid_leave_deduction'], 2); ?></td>
+                    <td><?php echo number_format($slip['unpaid_leave_deduction'] ?? 0, 2); ?></td>
                 </tr>
                 <tr>
                     <td>Overtime</td>
-                    <td><?php echo number_format($slip['overtime_amount'], 2); ?></td>
+                    <td><?php echo number_format($slip['overtime_pay'] ?? 0, 2); ?></td>
                     <td>PAYE Tax</td>
-                    <td><?php echo number_format($slip['paye_tax'], 2); ?></td>
+                    <td><?php echo number_format($slip['tax_paye'] ?? 0, 2); ?></td>
                 </tr>
                 <tr>
                     <td>Allowances</td>
                     <td><?php echo number_format($slip['allowances'] ?? 0, 2); ?></td>
                     <td>Pension Contribution</td>
-                    <td><?php echo number_format($slip['pension_deduction'], 2); ?></td>
+                    <td><?php echo number_format($slip['pension_deduction'] ?? 0, 2); ?></td>
                 </tr>
                 <tr>
                     <td>-</td>
                     <td>-</td>
                     <td>Health Insurance & Loan</td>
-                    <td><?php echo number_format(($slip['health_insurance'] ?? 0) + ($slip['loan_deduction'] ?? 0), 2); ?></td>
+                    <td><?php echo number_format($slip['insurance_deduction'] ?? 0, 2); ?></td>
                 </tr>
             </tbody>
         </table>
 
         <div style="text-align: right; margin-top: 20px; font-size: 16px;">
-            <strong style="color: #1e293b;">Net Pay: <span style="color: #2563eb; font-size: 18px;"><?php echo number_format($slip['net_pay'], 2); ?></span></strong>
+            <strong style="color: #1e293b;">Net Pay: <span style="color: #2563eb; font-size: 18px;"><?php echo number_format($slip['net_pay'] ?? 0, 2); ?></span></strong>
         </div>
 
         <div style="margin-top: 25px; display: flex; gap: 10px;">

@@ -1,33 +1,57 @@
 <?php
+// moduleX_contracts/contracts.php
+session_start();
 require_once '../config/db.php';
 
-// Handle form submission to create a contract / employee record
+$success_msg = '';
+$error_msg = '';
+
+// 1. Ensure user is logged in
+if (!isset($_SESSION['employee_id']) && !isset($_SESSION['user_id'])) {
+    header("Location: ../index.php?error=unauthorized");
+    exit();
+}
+
+$user_role = $_SESSION['role'] ?? '';
+
+// 2. Strict HR & Assistant HR check (plus a developer override if you use a specific developer session/flag)
+$is_strict_hr = in_array($user_role, ['HR', 'Assistant HR']);
+$is_developer = (isset($_SESSION['is_developer']) && $_SESSION['is_developer'] === true) || ($user_role === 'Developer'); // Adjust this condition if your dev shortcut uses a different session flag
+
+if (!$is_strict_hr && !$is_developer) {
+    header("Location: ../index.php?error=access_denied");
+    exit();
+}
+
+// Handle form submission to create a contract record in employee_contracts
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_contract'])) {
-    $full_name = trim($_POST['full_name']);
+    $employee_name = trim($_POST['employee_name']);
     $department = trim($_POST['department']);
     $job_title = trim($_POST['job_title']);
-    $salary = $_POST['salary'];
-    $start_date = $_POST['start_date'];
-
-    // Split full name into first and last name
-    $name_parts = explode(' ', $full_name, 2);
-    $first_name = $name_parts[0];
-    $last_name = $name_parts[1] ?? '';
+    $monthly_salary = $_POST['monthly_salary'];
+    $contract_start_date = $_POST['start_date'];
+    $expiry_date = !empty($_POST['end_date']) ? $_POST['end_date'] : null;
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO employees (first_name, last_name, department, position, salary, hire_date, employment_status) VALUES (?, ?, ?, ?, ?, ?, 'Active')");
-        $stmt->execute([$first_name, $last_name, $department, $job_title, $salary, $start_date]);
+        $stmt = $pdo->prepare("INSERT INTO employee_contracts (employee_name, department, job_title, monthly_salary, contract_start_date, expiry_date, contract_status) VALUES (?, ?, ?, ?, ?, ?, 'Active')");
+        $stmt->execute([$employee_name, $department, $job_title, $monthly_salary, $contract_start_date, $expiry_date]);
 
-        header("Location: contracts.php");
+        header("Location: contracts.php?success=created");
         exit();
     } catch (PDOException $e) {
         $error = "Error creating contract record: " . $e->getMessage();
     }
 }
 
+// Catch success message from redirect
+if (isset($_GET['success']) && $_GET['success'] === 'created') {
+    $success_msg = "Contract record saved successfully!";
+}
+
 // Fetch all employee contract records
+$contracts = [];
 try {
-    $stmt = $pdo->query("SELECT * FROM employees ORDER BY employee_id DESC");
+    $stmt = $pdo->query("SELECT * FROM employee_contracts ORDER BY contract_id DESC");
     $contracts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $contracts = [];
@@ -38,95 +62,101 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contracts Management - hrms</title>
+    <title>Contracts Management - HRMS</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f9ff;
+            background-color: #ffffff;
+            color: #1e293b;
             margin: 0;
             padding: 0;
         }
         .container {
-            margin: 20px auto 40px auto;
-            margin-left: 280px;
-            max-width: calc(100% - 320px);
-            padding: 24px;
+            margin-left: 260px;
+            max-width: calc(100% - 260px);
+            padding: 20px;
             box-sizing: border-box;
             background: #ffffff;
-            min-height: calc(100vh - 60px);
-            border-radius: 10px;
-            border: 1px solid #bae6fd;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.05);
+            min-height: 100vh;
         }
         header {
-            border-bottom: 2px solid #e0f2fe;
-            padding-bottom: 12px;
-            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .page-title {
             margin: 0;
-            color: #0369a1;
-            font-size: 18px;
-            font-weight: 800;
-            text-transform: uppercase;
-            text-align: center;
-            width: 100%;
-        }
-        .section-title {
-            text-align: center;
-            font-size: 14px;
-            font-weight: 800;
-            color: #0369a1;
-            margin-top: 5px;
-            margin-bottom: 15px;
+            color: #1e293b;
+            font-size: 16px;
+            font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        .brand-title {
+            color: #2563eb;
+            font-weight: 900;
+        }
+        .section-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #1e293b;
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-left: 3px solid #2563eb;
+            padding-left: 6px;
+        }
         .btn-primary {
-            background-color: #0284c7;
+            background-color: #2563eb;
             color: white;
-            padding: 8px 12px;
+            padding: 6px 12px;
             text-decoration: none;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             border: none;
             cursor: pointer;
-            font-weight: bold;
+            font-weight: 900;
+            text-transform: uppercase;
         }
         .btn-primary:hover {
-            background-color: #0369a1;
+            background-color: #1d4ed8;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 5px;
-            margin-bottom: 25px;
-            font-size: 12px;
+            margin-bottom: 20px;
+            font-size: 11px;
+            background: #ffffff;
+            border: 1px solid #bfdbfe;
+            border-radius: 4px;
+            overflow: hidden;
         }
         th, td {
-            padding: 10px;
+            padding: 8px 10px;
             text-align: left;
-            border-bottom: 1px solid #e0f2fe;
+            border-bottom: 1px solid #e2e8f0;
         }
         th {
-            background-color: #f0f9ff;
-            color: #0369a1;
-            font-weight: bold;
+            background-color: #eff6ff;
+            color: #1e293b;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         tr:hover {
             background-color: #f8fafc;
         }
         .form-container {
-            background: #ffffff;
-            padding: 20px;
+            background: #eff6ff;
+            padding: 16px;
             border-radius: 6px;
-            border: 1px solid #bae6fd;
-            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.03);
+            border: 1px solid #bfdbfe;
             margin-top: 15px;
-            max-width: 100%;
             box-sizing: border-box;
         }
         .form-group {
@@ -134,33 +164,36 @@ try {
         }
         .form-group label {
             display: block;
-            margin-bottom: 3px;
-            font-weight: bold;
-            font-size: 12px;
-            color: #334155;
+            margin-bottom: 4px;
+            font-weight: 900;
+            font-size: 11px;
+            color: #1e293b;
+            text-transform: uppercase;
         }
         .form-group input {
             width: 100%;
-            padding: 7px;
-            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            border: 1px solid #bfdbfe;
             border-radius: 4px;
             box-sizing: border-box;
-            font-size: 12px;
+            font-size: 11px;
             background: #ffffff;
-            color: #0f172a;
+            color: #1e293b;
         }
         .form-group input:focus {
-            border-color: #0284c7;
+            border-color: #2563eb;
             outline: none;
-            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.1);
         }
         .badge {
-            padding: 3px 8px;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
-        .badge-active { background-color: #22c55e; color: white; }
+        .badge-active { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .alert-success { background: #dcfce7; color: #166534; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 11px; font-weight: 900; text-transform: uppercase; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -169,15 +202,22 @@ try {
 
 <div class="container">
     <header>
-        <a href="/HR/index.php" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: bold;">← Back</a>
-        <h1 class="page-title">Contracts Management</h1>
-        <div style="width: 50px;"></div>
+        <h1 class="page-title"><span class="brand-title">CHAP CHAP</span> <span class="brand-title" style="color: #3b82f6;">AFRICA</span> - Contracts Management</h1>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 900; color: #64748b; text-transform: uppercase;">Role: <?php echo htmlspecialchars($user_role ?: 'Developer Override'); ?></span>
+            <a href="/HR/index.php" style="background-color: #64748b; color: #ffffff; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-size: 11px; font-weight: 900; text-transform: uppercase;">← Back</a>
+        </div>
     </header>
 
-    <?php if (isset($error)): ?>
-        <div style="background: #fee2e2; color: #991b1b; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 12px;"><?php echo htmlspecialchars($error); ?></div>
+    <?php if (!empty($success_msg)): ?>
+        <div class="alert-success"><?php echo $success_msg; ?></div>
     <?php endif; ?>
 
+    <?php if (isset($error) || !empty($error_msg)): ?>
+        <div class="alert-error"><?php echo htmlspecialchars($error ?? $error_msg); ?></div>
+    <?php endif; ?>
+
+    <!-- Active Contracts Table -->
     <h2 class="section-title">Active Contracts</h2>
     <table>
         <thead>
@@ -185,9 +225,10 @@ try {
                 <th>ID</th>
                 <th>Employee Name</th>
                 <th>Department</th>
-                <th>Position</th>
+                <th>Job Title</th>
                 <th>Salary</th>
-                <th>Hire Date</th>
+                <th>Start Date</th>
+                <th>Expiry Date</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -195,35 +236,37 @@ try {
             <?php if (count($contracts) > 0): ?>
                 <?php foreach ($contracts as $row): ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($row['employee_id']); ?></td>
-                        <td><strong><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($row['contract_id'] ?? 'N/A'); ?></td>
+                        <td><strong><?php echo htmlspecialchars($row['employee_name'] ?? 'N/A'); ?></strong></td>
                         <td><?php echo htmlspecialchars($row['department'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($row['position'] ?? 'N/A'); ?></td>
-                        <td><strong>UGX <?php echo number_format($row['salary'] ?? 0, 2); ?></strong></td>
-                        <td><?php echo htmlspecialchars($row['hire_date'] ?? 'N/A'); ?></td>
+                        <td><?php echo htmlspecialchars($row['job_title'] ?? 'N/A'); ?></td>
+                        <td><strong>UGX <?php echo number_format($row['monthly_salary'] ?? 0, 2); ?></strong></td>
+                        <td><?php echo htmlspecialchars($row['contract_start_date'] ?? 'N/A'); ?></td>
+                        <td><?php echo htmlspecialchars($row['expiry_date'] ?? 'Permanent / N/A'); ?></td>
                         <td>
                             <span class="badge badge-active">
-                                <?php echo htmlspecialchars($row['employment_status'] ?? 'Active'); ?>
+                                <?php echo htmlspecialchars($row['contract_status'] ?? 'Active'); ?>
                             </span>
                         </td>
                     </tr>
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="7" style="text-align: center; color: #64748b;">No contract records found.</td>
+                    <td colspan="8" style="text-align: center; color: #64748b; font-weight: 900; text-transform: uppercase;">No contract records found.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
     </table>
 
+    <!-- Add Contract Form -->
     <div class="form-container">
-        <h3 class="section-title" style="margin-top: 0; text-align: left;">Add New Employee Contract</h3>
+        <h3 class="section-title">Add New Employee Contract</h3>
         
         <form method="POST">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label>Employee Full Name</label>
-                    <input type="text" name="full_name" required>
+                    <input type="text" name="employee_name" required>
                 </div>
                 <div class="form-group">
                     <label>Department</label>
@@ -233,18 +276,24 @@ try {
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                    <label>Job Title / Position</label>
+                    <label>Job Title</label>
                     <input type="text" name="job_title" required>
                 </div>
                 <div class="form-group">
-                    <label>Salary (UGX)</label>
-                    <input type="number" step="0.01" name="salary" required>
+                    <label>Monthly Salary (UGX)</label>
+                    <input type="number" step="0.01" name="monthly_salary" required>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>Start Date / Hire Date</label>
-                <input type="date" name="start_date" required>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Contract Start Date</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>Expiry Date (Optional)</label>
+                    <input type="date" name="end_date">
+                </div>
             </div>
 
             <div style="margin-top: 15px;">

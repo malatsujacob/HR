@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // 3. Update Module 1 Status Hook marker to Pending Clearance
-            $hookStmt = $pdo->prepare("UPDATE employees SET status = 'Exiting / Pending Clearance' WHERE id = ?");
+            $hookStmt = $pdo->prepare("UPDATE employees SET status = 'Exiting / Pending Clearance' WHERE employee_id = ?");
             $hookStmt->execute([intval($employee_id)]);
 
             $pdo->commit();
